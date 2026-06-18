@@ -137,8 +137,15 @@ async function processMessage(account, msg, pendingState, styleCtx) {
   const headers   = payload.headers ?? [];
   const subject   = getHeader(headers, 'subject');
   const from      = getHeader(headers, 'from');
+  const toHeader  = getHeader(headers, 'to');
+  const ccHeader  = getHeader(headers, 'cc');
   const body      = extractBody(payload);
   const hasPDF    = hasPdf(payload);
+
+  // Detect if John is TO'd directly or only CC'd
+  const johnEmail = (process.env.JOHN_EMAIL ?? '').toLowerCase();
+  const isDirectlyAddressed = toHeader.toLowerCase().includes(johnEmail);
+  const isCc = !isDirectlyAddressed && ccHeader.toLowerCase().includes(johnEmail);
   const pdfFilenames = findAllPdfParts(payload).map(p => p.filename ?? '');
   const pdfPart   = hasPDF ? listApprovalPdfParts(payload, subject, from)[0] ?? null : null;
   const pdfFilename = pdfPart?.filename ?? pdfFilenames[0] ?? '';
@@ -208,12 +215,34 @@ async function processMessage(account, msg, pendingState, styleCtx) {
     return { status: 'skipped', wasUnread };
   }
 
-  const email = { messageId: msg.id, threadId: full.data.threadId, subject, from, body };
+  const email = { messageId: msg.id, threadId: full.data.threadId, subject, from, body, isCc };
   const classification = await aiClassify(email, styleCtx);
 
   if (classification.category === 'IGNORE') {
     log(label, msg.id, 'ai-ignored', { subject, reason: classification.reason });
     return { status: 'ignored', wasUnread };
+  }
+
+  // CC emails: never draft a reply, include in digest only if URGENT
+  if (isCc) {
+    if (classification.category !== 'URGENT') {
+      log(label, msg.id, 'cc-skipped', { subject, category: classification.category });
+      return { status: 'ignored', wasUnread };
+    }
+    // URGENT CC: add to digest as a heads-up, no draft
+    log(label, msg.id, 'cc-urgent-queued', { subject });
+    pendingState.pendingItems.push({
+      messageId: msg.id,
+      category: 'URGENT',
+      priority: classification.priority,
+      summary: `[CC] ${classification.summary}`,
+      from,
+      subject,
+      draftId: null,
+      isCc: true,
+      ts: new Date().toISOString()
+    });
+    return { status: 'urgent', wasUnread };
   }
 
   let draftId = null;
