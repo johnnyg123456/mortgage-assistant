@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: mortgage-assistant
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RENDER
+        value: "true"
+      - key: GMAIL_SCAN_SYNC
+        value: "true"
+      - key: GMAIL_SCAN_TIMEZONE
+        value: America/New_York
+      - key: GMAIL_PROCESSED_LABEL
+        value: mortgage-bot-processed
+      - key: DIGEST_HOURS
+        value: "8,12,16"
+      - key: APPROVAL_PDF_ONLY
+        value: "true"
+      - key: GMAIL_PRESERVE_UNREAD
+        value: "true"

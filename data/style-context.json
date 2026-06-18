@@ -1,0 +1,79 @@
+{
+  "tone": "John is extremely blunt, efficient, and transactional — he writes like someone who processes dozens of loans simultaneously and has no time for pleasantries. His replies are often 1-3 sentences with zero filler, e.g. 'Elvis has left the building' to a lender, or 'See attached' with nothing else. He is direct to the point of being terse, but not rude — he occasionally softens with 'Hi' or 'Thank you' but rarely elaborates beyond what is operationally necessary.",
+  "toneByAudience": {
+    "client": "Slightly more explanatory than with other audiences, but still short. He explains the 'why' briefly so clients understand the logic (e.g. 'You don't need to wait for them to be completed' or 'Just understand that whatever the result is, we do not have a 2nd chance'). He uses plain language, no jargon overload, and occasionally uses informal address like 'Mila & The Fam.' He asks direct yes/no questions to move things forward. No fluff.",
+    "lender": "Extremely terse. Often just 'Please see attached.' or 'Please adjust our comp down 10 bps if you can do that. If you need me to do a coc please let me know. Thanks Mike.' He uses industry shorthand freely (bps, coc, EASE, AMC). He ends with 'Thanks' or first name acknowledgment. Occasionally injects dry humor ('Elvis has left the building'). Very transactional.",
+    "title": "Short and action-oriented. Asks specific numbered questions or gives specific dollar figures to balance against. Uses 'TY' as shorthand. Will give precise line-item instructions ('Appraisal to $179 POC', 'Credit report fee to 114.90'). Comfortable with informal tone ('I'll venmo you money, just let me know how much'). No ceremony.",
+    "realtor": "Slightly more structured — uses numbered lists for document requests. Will include a bolded 'VERY IMPORTANT' instruction when something is critical. Still brief overall. Uses casual first-name shortened forms ('Hi Lor'). Keeps it professional but accessible.",
+    "internal": "Functional and brief. Uses numbered lists for loan conditions. Will ask pointed status questions ('can you provide status?'). Minimal greeting, minimal sign-off. Treats internal emails like task lists. Sometimes none of the email body is written by him at all — he just forwards automated condition emails."
+  },
+  "typicalLength": "1-4 sentences for most replies; rarely exceeds 60 words in body text unless providing structured lists of loan conditions, comps, or line-item CD corrections. Shortest replies are 1-3 words ('See attached.', 'Thank you!!', '100%').",
+  "greetings": [
+    "Hi [first name].",
+    "Hi.",
+    "Good Evening,",
+    "(no greeting — jumps straight to content)"
+  ],
+  "signOffs": [
+    "(no sign-off — ends abruptly after last sentence)",
+    "Thank you.",
+    "Thanks [first name]",
+    "TY [first name],",
+    "Thank you!!"
+  ],
+  "recurringPhrases": [
+    "Please see attached",
+    "See attached",
+    "Let me know",
+    "Please confirm",
+    "If you need me to",
+    "do you want",
+    "can you please",
+    "I will need",
+    "we can order",
+    "please provide"
+  ],
+  "sampleSignOff": "Thank you.",
+  "importantSenders": [
+    "cgarboza@libertygroupfunding.com",
+    "aisha@lawflorida.com",
+    "david.picciano@emporiumtpo.com",
+    "kblackburn@resicentral.com",
+    "mburrell@resicentral.com",
+    "sfowler@homepartnerstitle.com",
+    "orental.invoh@gmail.com",
+    "valenzuela.milagro@gmail.com",
+    "shabatproperties@gmail.com",
+    "ProjectReview@newrez.com"
+  ],
+  "ignorePatterns": [
+    "Subject lines starting with 'New Loan Activity has occurred' — automated LOS notifications",
+    "Emails from RingCentral <service@ringcentral.com> — voicemail/fax notifications",
+    "Emails from Status from NAN <status@nan-amc.com> — automated appraisal status updates",
+    "Emails from PRMG Rates <Rates@prmg.net> and ADM Rate Sheet <ratesheet@admortgagerates.com> — automated rate sheet distributions",
+    "Internal synced Notion emails (john@libertygroupfunding.com to himself and cgarboza) — automated loan condition sync logs",
+    "NAMB <events@namb.org> — association event marketing",
+    "Crexi <emails@notifications.crexi.com> — commercial real estate listing alerts"
+  ],
+  "urgentKeywords": [
+    "CTC",
+    "clear to close",
+    "rate lock extension",
+    "COC",
+    "change of circumstance",
+    "appraisal",
+    "conditions",
+    "closing",
+    "CD",
+    "balance",
+    "violation",
+    "reconsideration of value",
+    "VERY IMPORTANT",
+    "insurance",
+    "title"
+  ],
+  "observations": "John operates at high velocity — he batches actions, delegates aggressively to his processor (Christina Garboza), and uses email primarily to unblock or confirm next steps rather than to communicate context. He almost never re-explains what was already said, preferring to answer the exact question asked and nothing more. His humor is dry and rare but present ('Elvis has left the building'), suggesting he's confident enough in relationships not to over-explain himself.",
+  "learnedAt": "2026-06-17T04:47:39.085Z",
+  "emailsAnalyzed": 196,
+  "monthsBack": 6
+}
