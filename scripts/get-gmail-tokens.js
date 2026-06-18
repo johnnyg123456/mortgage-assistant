@@ -26,6 +26,12 @@ const ACCOUNTS = [
     envKey:       'GMAIL_REFRESH_TOKEN_CHRISTY',
     clientId:     process.env.GMAIL_CLIENT_ID_CHRISTY,
     clientSecret: process.env.GMAIL_CLIENT_SECRET_CHRISTY,
+  },
+  {
+    label:        'ebot (Feedback)',
+    envKey:       'GMAIL_REFRESH_TOKEN_EBOT',
+    clientId:     process.env.GMAIL_CLIENT_ID_EBOT,
+    clientSecret: process.env.GMAIL_CLIENT_SECRET_EBOT,
   }
 ];
 
@@ -132,8 +138,25 @@ async function authorizeAccount(account) {
 }
 
 async function main() {
+  const filter = process.argv[2]?.toLowerCase();
+  const accounts = filter
+    ? ACCOUNTS.filter(a => a.label.toLowerCase().includes(filter) || a.envKey.toLowerCase().includes(filter))
+    : ACCOUNTS;
+
+  if (!accounts.length) {
+    console.error('No matching account. Use: node scripts/get-gmail-tokens.js [john|christy|ebot]');
+    process.exit(1);
+  }
+
+  for (const account of accounts) {
+    if (!account.clientId || !account.clientSecret) {
+      console.error(`\n[ERROR] ${account.label}: missing client ID or secret in .env`);
+      process.exit(1);
+    }
+  }
+
   console.log('\n=== Gmail OAuth Token Generator ===');
-  for (const account of ACCOUNTS) {
+  for (const account of accounts) {
     try {
       await authorizeAccount(account);
     } catch (err) {
@@ -141,7 +164,7 @@ async function main() {
       process.exit(1);
     }
   }
-  console.log('\n✓ Done — both refresh tokens saved to .env\n');
+  console.log(`\n✓ Done — ${accounts.length} refresh token(s) saved to .env\n`);
 }
 
 main();

@@ -2,7 +2,8 @@ require('dotenv').config();
 const fs   = require('fs');
 const path = require('path');
 
-const { getClients, extractBody, getHeader } = require('../lib/gmail-client');
+const { getClients, getEbotClient, extractBody, getHeader } = require('../lib/gmail-client');
+const { handle: processFeedback } = require('../lib/feedback-handler');
 const { classify: aiClassify }               = require('../lib/classifier');
 const { handle: createDraft }                = require('../lib/draft-handler');
 const { load: loadState, save: saveState, pruneProcessed } = require('../lib/state');
@@ -317,6 +318,55 @@ async function scanInbox(account, pendingState, styleCtx) {
   return stats;
 }
 
+// ── Feedback inbox scan ───────────────────────────────────────────────────────
+
+async function scanFeedbackInbox() {
+  const ebotGmail = getEbotClient();
+  if (!ebotGmail) {
+    log('ebot', null, 'skipped-no-credentials', {});
+    return { processed: 0 };
+  }
+
+  const today = getTodayDate();
+  // Look back 7 days so feedback sent over a weekend isn't missed
+  const sevenDaysAgo = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+  })();
+
+  const processedLabelId = await ensureLabel(ebotGmail, 'ebot');
+  const query = `in:inbox after:${sevenDaysAgo} -label:${PROCESSED_LABEL}`;
+  const listRes = await ebotGmail.users.messages.list({ userId: 'me', maxResults: 20, q: query });
+  const messages = listRes.data.messages ?? [];
+
+  if (!messages.length) {
+    log('ebot', null, 'no-feedback-messages', {});
+    return { processed: 0 };
+  }
+
+  let processed = 0;
+  for (const msg of messages) {
+    try {
+      const full    = await ebotGmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
+      const headers = full.data.payload?.headers ?? [];
+      const from    = getHeader(headers, 'from');
+      const subject = getHeader(headers, 'subject');
+      const body    = extractBody(full.data.payload);
+
+      const result = await processFeedback({ messageId: msg.id, from, subject, body });
+      log('ebot', msg.id, 'feedback-result', { from, subject, ...result });
+
+      if (!DRY_RUN) await markProcessed(ebotGmail, 'ebot', msg.id);
+      processed++;
+    } catch (err) {
+      log('ebot', msg.id, 'feedback-error', { error: err.message });
+    }
+  }
+
+  return { processed };
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 async function runScan() {
@@ -329,6 +379,14 @@ async function runScan() {
 
   // pendingState is a reference into appState so both get updated together
   const pendingState = appState;
+
+  // Scan feedback inbox first so corrections apply to this scan's classifications
+  let feedbackResult = { processed: 0 };
+  try {
+    feedbackResult = await scanFeedbackInbox();
+  } catch (err) {
+    console.error(JSON.stringify({ ts: new Date().toISOString(), inbox: 'ebot', error: err.message }));
+  }
 
   const results = {};
   for (const [key, account] of Object.entries(clients)) {
@@ -346,7 +404,7 @@ async function runScan() {
   // Fire digest if a scheduled hour
   const digestResult = await runIfDue();
 
-  return { ok: true, ts: new Date().toISOString(), results, digest: digestResult };
+  return { ok: true, ts: new Date().toISOString(), results, feedback: feedbackResult, digest: digestResult };
 }
 
 module.exports = async (req, res) => {

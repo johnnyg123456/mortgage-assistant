@@ -1,8 +1,7 @@
 require('dotenv').config();
-const { runIfDue } = require('../lib/digest-builder');
+const { runIfDue, buildDigestHtml } = require('../lib/digest-builder');
 const { load: loadState, save: saveState } = require('../lib/state');
-const { getClient, buildRawMessage } = require('../lib/gmail-client');
-const { buildDigestEmail } = require('../lib/digest-builder');
+const { getClient, buildRawHtmlMessage } = require('../lib/gmail-client');
 
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
@@ -13,25 +12,30 @@ module.exports = async (req, res) => {
     const force = req.query?.force === 'true';
 
     if (force) {
-      const state = loadState();
-      const items = state.pendingItems ?? [];
+      const state        = loadState();
+      const items        = state.pendingItems ?? [];
+      const ignoredCount = state._ignoredCount ?? 0;
 
       if (!items.length) {
         return res.status(200).json({ ok: true, sent: false, reason: 'no-items' });
       }
 
-      const gmail = getClient();
+      const gmail     = getClient();
       const johnEmail = process.env.JOHN_EMAIL;
-      const subject = `[Broker Assistant] Digest — ${items.filter(i => i.category === 'URGENT').length} urgent, ${items.filter(i => i.category === 'RESPOND').length} to respond`;
-      items._ignoredCount = state._ignoredCount ?? 0;
-      const body = buildDigestEmail(items);
+      const urgent    = items.filter(i => i.category === 'URGENT').length;
+      const respond   = items.filter(i => i.category === 'RESPOND').length;
+      const subject   = urgent
+        ? `[Digest] Now — ${urgent} urgent, ${respond} to respond`
+        : `[Digest] Now — ${respond} to respond`;
+
+      const html = buildDigestHtml(items, 'On-Demand', ignoredCount);
 
       if (!DRY_RUN) {
-        const raw = buildRawMessage({ from: johnEmail, to: johnEmail, subject, body });
+        const raw = buildRawHtmlMessage({ from: johnEmail, to: johnEmail, subject, html });
         await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
       }
 
-      state.pendingItems = [];
+      state.pendingItems  = [];
       state._ignoredCount = 0;
       saveState(state);
 
