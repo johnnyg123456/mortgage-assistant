@@ -141,15 +141,15 @@ async function processMessage(account, msg, pendingState, styleCtx) {
   const toHeader  = getHeader(headers, 'to');
   const ccHeader  = getHeader(headers, 'cc');
   const body      = extractBody(payload);
-  const hasPDF    = hasPdf(payload);
+  const pdfFilenames = findAllPdfParts(payload).map(p => p.filename ?? '');
+  const hasPDF    = pdfFilenames.length > 0 || hasPdf(payload);
+  const pdfPart   = hasPDF ? listApprovalPdfParts(payload, subject, from)[0] ?? null : null;
+  const pdfFilename = pdfPart?.filename ?? pdfFilenames[0] ?? '';
 
   // Detect if John is TO'd directly or only CC'd
   const johnEmail = (process.env.JOHN_EMAIL ?? '').toLowerCase();
   const isDirectlyAddressed = toHeader.toLowerCase().includes(johnEmail);
   const isCc = !isDirectlyAddressed && ccHeader.toLowerCase().includes(johnEmail);
-  const pdfFilenames = findAllPdfParts(payload).map(p => p.filename ?? '');
-  const pdfPart   = hasPDF ? listApprovalPdfParts(payload, subject, from)[0] ?? null : null;
-  const pdfFilename = pdfPart?.filename ?? pdfFilenames[0] ?? '';
 
   // ── Step 1: Keyword classify (fast, no API) ─────────────────────────────
   const kwClass = keywordClassify(subject, body, { hasPdf: hasPDF, from, pdfFilename, pdfFilenames });
@@ -158,7 +158,12 @@ async function processMessage(account, msg, pendingState, styleCtx) {
   // ── Step 2: Route approval PDFs to condition parser ─────────────────────
   if (kwClass === 'CONDITION_LIST') {
     const conditionParser = require('../lib/condition-parser');
-    const pdfParts = hasPDF ? listApprovalPdfParts(payload, subject, from) : [];
+    let pdfParts = hasPDF ? listApprovalPdfParts(payload, subject, from) : [];
+
+    // Fall back to any PDF attachment (e.g. internal "Loan Approval PDF {name}" forwards)
+    if (!pdfParts.length && hasPDF) {
+      pdfParts = findAllPdfParts(payload).filter(p => p?.body?.attachmentId);
+    }
 
     // NewRez: download PDF from link if no attachment
     if (!pdfParts.length && isNewrezApprovalEmail(from, subject)) {
