@@ -2,7 +2,7 @@ require('dotenv').config();
 const fs   = require('fs');
 const path = require('path');
 
-const { getClients, getEbotClient, extractBody, getHeader } = require('../lib/gmail-client');
+const { getClients, getEbotClient, warmUpGmailClient, extractBody, getHeader } = require('../lib/gmail-client');
 const { handle: processFeedback } = require('../lib/feedback-handler');
 const { classify: aiClassify }               = require('../lib/classifier');
 const { handle: createDraft }                = require('../lib/draft-handler');
@@ -332,6 +332,8 @@ async function scanFeedbackInbox() {
     return { processed: 0 };
   }
 
+  await warmUpGmailClient(ebotGmail, { label: 'ebot' });
+
   const today = getTodayDate();
   // Look back 7 days so feedback sent over a weekend isn't missed
   const sevenDaysAgo = (() => {
@@ -395,7 +397,13 @@ async function runScan() {
 
   const results = {};
   for (const [key, account] of Object.entries(clients)) {
+    if (key === 'christy' && process.env.GMAIL_SKIP_CHRISTY === 'true') {
+      log('Christy', null, 'inbox-skipped', { reason: 'GMAIL_SKIP_CHRISTY' });
+      results[key] = { skipped: true, reason: 'GMAIL_SKIP_CHRISTY' };
+      continue;
+    }
     try {
+      await warmUpGmailClient(account.gmail, { label: account.label });
       results[key] = await scanInbox(account, pendingState, styleCtx);
     } catch (err) {
       console.error(JSON.stringify({ ts: new Date().toISOString(), inbox: account.label, error: err.message }));
