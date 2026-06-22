@@ -334,6 +334,8 @@ async function scanFeedbackInbox() {
 
   await warmUpGmailClient(ebotGmail, { label: 'ebot' });
 
+  const ebotGmailClient = ebotGmail.gmail ?? ebotGmail;
+
   const today = getTodayDate();
   // Look back 7 days so feedback sent over a weekend isn't missed
   const sevenDaysAgo = (() => {
@@ -342,9 +344,9 @@ async function scanFeedbackInbox() {
     return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
   })();
 
-  const processedLabelId = await ensureLabel(ebotGmail, 'ebot');
+  const processedLabelId = await ensureLabel(ebotGmailClient, 'ebot');
   const query = `in:inbox after:${sevenDaysAgo} -label:${PROCESSED_LABEL}`;
-  const listRes = await ebotGmail.users.messages.list({ userId: 'me', maxResults: 20, q: query });
+  const listRes = await ebotGmailClient.users.messages.list({ userId: 'me', maxResults: 20, q: query });
   const messages = listRes.data.messages ?? [];
 
   if (!messages.length) {
@@ -355,7 +357,7 @@ async function scanFeedbackInbox() {
   let processed = 0;
   for (const msg of messages) {
     try {
-      const full    = await ebotGmail.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
+      const full    = await ebotGmailClient.users.messages.get({ userId: 'me', id: msg.id, format: 'full' });
       const headers = full.data.payload?.headers ?? [];
       const from    = getHeader(headers, 'from');
       const subject = getHeader(headers, 'subject');
@@ -364,7 +366,7 @@ async function scanFeedbackInbox() {
       const result = await processFeedback({ messageId: msg.id, from, subject, body });
       log('ebot', msg.id, 'feedback-result', { from, subject, ...result });
 
-      if (!DRY_RUN) await markProcessed(ebotGmail, 'ebot', msg.id);
+      if (!DRY_RUN) await markProcessed(ebotGmailClient, 'ebot', msg.id);
       processed++;
     } catch (err) {
       log('ebot', msg.id, 'feedback-error', { error: err.message });
