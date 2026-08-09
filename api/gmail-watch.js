@@ -210,6 +210,29 @@ async function processMessage(account, msg, pendingState, styleCtx) {
     return { status: 'status-request', wasUnread };
   }
 
+  // ── Step 2.6: Borrower / LO-forwarded docs → match against open Notion ───
+  //     conditions and email John+Christy a review summary (no Notion writes).
+  if (hasPDF) {
+    const borrowerDocHandler = require('../lib/borrower-doc-handler');
+    if (borrowerDocHandler.isEligibleDocSender(from, subject, body)) {
+      const pdfParts = findAllPdfParts(payload).filter(p => p?.body?.attachmentId);
+      if (pdfParts.length) {
+        const pdfs = [];
+        for (const part of pdfParts) {
+          const buffer = await getAttachmentData(gmail, msg.id, part.body.attachmentId);
+          pdfs.push({ filename: part.filename || 'attachment.pdf', buffer });
+        }
+        const docResult = await borrowerDocHandler.handle(account, {
+          messageId: msg.id, threadId: full.data.threadId, subject, from, body
+        }, pdfs);
+        if (docResult.handled) {
+          log(label, msg.id, 'dispatched-borrower-docs', { subject, reason: docResult.reason });
+          return { status: 'borrower-docs', wasUnread };
+        }
+      }
+    }
+  }
+
   // ── Step 3: Non-PDF approval handlers (pre-approval, lender request) ────
   if (!APPROVAL_PDF_ONLY) {
     if (kwClass === 'PRE_APPROVAL') {
@@ -295,7 +318,7 @@ async function scanInbox(account, pendingState, styleCtx) {
 
   let pageToken;
   let count = 0;
-  const stats = { conditionList: 0, statusRequests: 0, queued: 0, ignored: 0, skipped: 0, errors: 0 };
+  const stats = { conditionList: 0, statusRequests: 0, borrowerDocs: 0, queued: 0, ignored: 0, skipped: 0, errors: 0 };
 
   while (count < MAX_TOTAL_PER_INBOX) {
     const batchSize = Math.min(MAX_PER_INBOX, MAX_TOTAL_PER_INBOX - count);
@@ -316,6 +339,7 @@ async function scanInbox(account, pendingState, styleCtx) {
 
         if (result.status === 'condition-list') stats.conditionList++;
         else if (result.status === 'status-request') stats.statusRequests++;
+        else if (result.status === 'borrower-docs') stats.borrowerDocs++;
         else if (result.status === 'ignored' || result.status === 'skipped' || result.status === 'skipped-no-approval-pdf') stats.ignored++;
         else if (['urgent','respond','fyi'].includes(result.status)) stats.queued++;
 
