@@ -199,6 +199,17 @@ async function processMessage(account, msg, pendingState, styleCtx) {
     return { status: 'condition-list', wasUnread };
   }
 
+  // ── Step 2.5: Internal team status requests (any account, before the ─────
+  //     John-only gate below — this is what lets Christy's inbox get handled) ─
+  const statusHandler = require('../lib/status-request-handler');
+  const statusResult = await statusHandler.handle(account, {
+    messageId: msg.id, threadId: full.data.threadId, subject, from, body
+  });
+  if (statusResult.handled) {
+    log(label, msg.id, 'dispatched-status-request', { subject, draftId: statusResult.draftId });
+    return { status: 'status-request', wasUnread };
+  }
+
   // ── Step 3: Non-PDF approval handlers (pre-approval, lender request) ────
   if (!APPROVAL_PDF_ONLY) {
     if (kwClass === 'PRE_APPROVAL') {
@@ -284,7 +295,7 @@ async function scanInbox(account, pendingState, styleCtx) {
 
   let pageToken;
   let count = 0;
-  const stats = { conditionList: 0, queued: 0, ignored: 0, skipped: 0, errors: 0 };
+  const stats = { conditionList: 0, statusRequests: 0, queued: 0, ignored: 0, skipped: 0, errors: 0 };
 
   while (count < MAX_TOTAL_PER_INBOX) {
     const batchSize = Math.min(MAX_PER_INBOX, MAX_TOTAL_PER_INBOX - count);
@@ -304,6 +315,7 @@ async function scanInbox(account, pendingState, styleCtx) {
         if (!DRY_RUN) await markProcessed(gmail, label, msg.id, { wasUnread: result.wasUnread });
 
         if (result.status === 'condition-list') stats.conditionList++;
+        else if (result.status === 'status-request') stats.statusRequests++;
         else if (result.status === 'ignored' || result.status === 'skipped' || result.status === 'skipped-no-approval-pdf') stats.ignored++;
         else if (['urgent','respond','fyi'].includes(result.status)) stats.queued++;
 
