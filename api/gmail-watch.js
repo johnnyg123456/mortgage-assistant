@@ -2,7 +2,7 @@ require('dotenv').config();
 const fs   = require('fs');
 const path = require('path');
 
-const { getClients, getEbotClient, warmUpGmailClient, extractBody, getHeader } = require('../lib/gmail-client');
+const { getClients, getEbotClient, warmUpGmailClient, withGmailRetry, extractBody, getHeader } = require('../lib/gmail-client');
 const { handle: processFeedback } = require('../lib/feedback-handler');
 const { classify: aiClassify }               = require('../lib/classifier');
 const { handle: createDraft }                = require('../lib/draft-handler');
@@ -392,7 +392,7 @@ async function runScan() {
   // Scan feedback inbox first so corrections apply to this scan's classifications
   let feedbackResult = { processed: 0 };
   try {
-    feedbackResult = await scanFeedbackInbox();
+    feedbackResult = await withGmailRetry(() => scanFeedbackInbox(), { label: 'ebot', action: 'feedback-scan-retry' });
   } catch (err) {
     console.error(JSON.stringify({ ts: new Date().toISOString(), inbox: 'ebot', error: err.message }));
   }
@@ -405,8 +405,11 @@ async function runScan() {
       continue;
     }
     try {
-      await warmUpGmailClient(account.gmail, { label: account.label });
-      results[key] = await scanInbox(account, pendingState, styleCtx);
+      await warmUpGmailClient(account, { label: account.label });
+      results[key] = await withGmailRetry(
+        () => scanInbox(account, pendingState, styleCtx),
+        { label: account.label, action: 'inbox-scan-retry' }
+      );
     } catch (err) {
       console.error(JSON.stringify({ ts: new Date().toISOString(), inbox: account.label, error: err.message }));
       results[key] = { error: err.message };
