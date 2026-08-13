@@ -20,6 +20,12 @@ const { isNewrezApprovalEmail,
 
 const DRY_RUN                  = process.env.DRY_RUN === 'true';
 const APPROVAL_PDF_ONLY        = process.env.APPROVAL_PDF_ONLY !== 'false';
+// John's general inbox auto-draft-reply feature (Step 4 below). Turned off
+// 2026-08-10 per John: replies to URGENT/complex business emails were coming
+// out as generic ("ok got it") and didn't reflect how nuanced the actual
+// situations were. Digest/classification still runs either way — this only
+// stops the reply draft itself from being created. Set to true to re-enable.
+const JOHN_AUTO_DRAFT_ENABLED  = process.env.JOHN_AUTO_DRAFT_ENABLED === 'true';
 const PRESERVE_UNREAD          = process.env.GMAIL_PRESERVE_UNREAD !== 'false';
 const TIMEZONE                 = process.env.GMAIL_SCAN_TIMEZONE || 'America/New_York';
 const MAX_PER_INBOX            = Number(process.env.GMAIL_MAX_MESSAGES_PER_INBOX) || 25;
@@ -286,7 +292,7 @@ async function processMessage(account, msg, pendingState, styleCtx) {
   }
 
   let draftId = null;
-  if (classification.draftNeeded &&
+  if (JOHN_AUTO_DRAFT_ENABLED && classification.draftNeeded &&
       (classification.category === 'URGENT' || classification.category === 'RESPOND')) {
     draftId = await createDraft(email, classification, styleCtx);
   }
